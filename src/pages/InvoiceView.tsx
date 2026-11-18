@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Ban, BellRing, Copy, CreditCard, Download, Mail, Pencil, Printer, Repeat, Send, Trash2, Undo2, X } from 'lucide-react';
-import { useStore, useToast } from '../store';
-import { daysBetween, formatDate, formatMoney, invoiceStatus, invoiceTotals, todayISO } from '../utils';
+import { useConfirm, useStore, useToast } from '../store';
+import { isEmbedded, daysBetween, formatDate, formatMoney, invoiceStatus, invoiceTotals, todayISO } from '../utils';
 import { PageHeader, StatusBadge } from '../components/ui';
 import InvoiceDocument from '../components/InvoiceDocument';
 import PaymentForm from '../components/PaymentForm';
@@ -12,6 +12,7 @@ export default function InvoiceView() {
   const { data, saveInvoice, deleteInvoice, duplicateInvoice, removePayment } = useStore();
   const navigate = useNavigate();
   const toast = useToast();
+  const ask = useConfirm();
   const [paying, setPaying] = useState(false);
   const inv = data.invoices.find((i) => i.id === id);
 
@@ -53,13 +54,13 @@ export default function InvoiceView() {
     saveInvoice({ ...inv, state: 'draft', sentAt: undefined });
     toast('Moved back to draft');
   };
-  const toggleVoid = () => {
-    if (inv.state !== 'void' && !confirm(`Void ${inv.number}? It will no longer count toward outstanding totals.`)) return;
+  const toggleVoid = async () => {
+    if (inv.state !== 'void' && !(await ask({ title: `Void ${inv.number}?`, message: 'It will stay in your records but no longer count toward outstanding totals.', confirmLabel: 'Void invoice', danger: true }))) return;
     saveInvoice({ ...inv, state: inv.state === 'void' ? 'sent' : 'void' });
     toast(inv.state === 'void' ? 'Invoice restored' : 'Invoice voided');
   };
-  const remove = () => {
-    if (!confirm(`Delete ${inv.number} permanently? This can’t be undone.`)) return;
+  const remove = async () => {
+    if (!(await ask({ title: `Delete ${inv.number}?`, message: 'This permanently removes the invoice and its payments. This can’t be undone.', confirmLabel: 'Delete', danger: true }))) return;
     deleteInvoice(inv.id);
     toast('Invoice deleted');
     navigate('/invoices');
@@ -93,7 +94,7 @@ export default function InvoiceView() {
         subtitle={client ? <Link to={`/clients/${client.id}`} className="link">{client.company || client.name}</Link> : 'No client'}
         actions={
           <>
-            <button className="btn" onClick={print}><Download size={16} /> PDF</button>
+            {!isEmbedded && <button className="btn" onClick={print}><Download size={16} /> PDF</button>}
             {inv.state !== 'void' && <Link to={`/invoices/${inv.id}/edit`} className="btn"><Pencil size={16} /> Edit</Link>}
             {status === 'draft' && <button className="btn btn-primary" onClick={markSent}><Send size={16} /> Mark as sent</button>}
             {['sent', 'partial', 'overdue'].includes(status) && (
@@ -140,7 +141,7 @@ export default function InvoiceView() {
               {['sent', 'partial', 'overdue'].includes(status) && (
                 <a className="btn btn-block" href={reminderEmail}><BellRing size={16} /> Send payment reminder</a>
               )}
-              <button className="btn btn-block" onClick={print}><Printer size={16} /> Print / Save as PDF</button>
+              {!isEmbedded && <button className="btn btn-block" onClick={print}><Printer size={16} /> Print / Save as PDF</button>}
             </div>
             {!client?.email && <p className="muted small mt8">Tip: add an email to this client to pre-fill the recipient.</p>}
           </section>
@@ -155,7 +156,7 @@ export default function InvoiceView() {
                       <div className="strong">{money(p.amount)}</div>
                       <div className="muted small">{formatDate(p.date)} · {p.method}{p.note ? ` · ${p.note}` : ''}</div>
                     </div>
-                    <button className="icon-btn" aria-label="Remove payment" onClick={() => { if (confirm('Remove this payment?')) { removePayment(inv.id, p.id); toast('Payment removed'); } }}>
+                    <button className="icon-btn" aria-label="Remove payment" onClick={async () => { if (await ask({ title: 'Remove this payment?', message: `${money(p.amount)} received ${formatDate(p.date)} will be removed from this invoice.`, confirmLabel: 'Remove', danger: true })) { removePayment(inv.id, p.id); toast('Payment removed'); } }}>
                       <X size={16} />
                     </button>
                   </li>

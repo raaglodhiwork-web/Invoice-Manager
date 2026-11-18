@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, FileText, Mail, MapPin, Pencil, Phone, Plus, Trash2 } from 'lucide-react';
-import { useStore, useToast } from '../store';
+import { useConfirm, useStore, useToast } from '../store';
 import { formatDate, formatMoney, initials, invoiceStatus, invoiceTotals } from '../utils';
 import { EmptyState, PageHeader, StatusBadge } from '../components/ui';
 import ClientForm from '../components/ClientForm';
@@ -11,6 +11,7 @@ export default function ClientDetail() {
   const { data, deleteClient } = useStore();
   const navigate = useNavigate();
   const toast = useToast();
+  const ask = useConfirm();
   const [editing, setEditing] = useState(false);
   const c = data.clients.find((x) => x.id === id);
 
@@ -35,9 +36,9 @@ export default function ClientDetail() {
   }
 
   const createInvoice = () => navigate(`/invoices/new?client=${c.id}`);
-  const remove = () => {
-    const msg = invs.length ? `Delete ${c.company || c.name} and their ${invs.length} invoice(s)? This can’t be undone.` : `Delete ${c.company || c.name}?`;
-    if (!confirm(msg)) return;
+  const remove = async () => {
+    const msg = invs.length ? `This also deletes their ${invs.length} invoice${invs.length === 1 ? '' : 's'}. This can’t be undone.` : 'This can’t be undone.';
+    if (!(await ask({ title: `Delete ${c.company || c.name}?`, message: msg, confirmLabel: 'Delete', danger: true }))) return;
     deleteClient(c.id);
     toast('Client deleted');
     navigate('/clients');

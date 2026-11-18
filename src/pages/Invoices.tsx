@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, Download, FileText, Plus, Repeat, Search } from 'lucide-react';
 import { useStore } from '../store';
-import { downloadFile, formatDate, formatMoney, invoiceStatus, invoiceTotals, STATUS_LABEL, toCSV, todayISO } from '../utils';
+import { isEmbedded, downloadFile, formatDate, formatMoney, invoiceStatus, invoiceTotals, STATUS_LABEL, toCSV, todayISO } from '../utils';
 import { EmptyState, PageHeader, StatusBadge } from '../components/ui';
 import type { InvoiceStatus } from '../types';
 
@@ -81,7 +81,7 @@ export default function Invoices() {
         subtitle={`${data.invoices.length} total`}
         actions={
           <>
-            <button className="btn" onClick={exportCSV} disabled={!visible.length}><Download size={16} /> Export CSV</button>
+            {!isEmbedded && <button className="btn" onClick={exportCSV} disabled={!visible.length}><Download size={16} /> Export CSV</button>}
             <button className="btn btn-primary" onClick={() => navigate('/invoices/new')}><Plus size={16} /> New invoice</button>
           </>
         }

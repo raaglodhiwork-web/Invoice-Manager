@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, ImagePlus, Upload } from 'lucide-react';
-import { useStore, useToast } from '../store';
+import { useConfirm, useStore, useToast } from '../store';
 import type { AppData, Settings as S } from '../types';
-import { CURRENCIES, downloadFile, todayISO } from '../utils';
+import { CURRENCIES, downloadFile, isEmbedded, todayISO } from '../utils';
 import { Field, PageHeader } from '../components/ui';
 
 const ACCENTS = ['#4f46e5', '#0f766e', '#2563eb', '#be123c', '#c2410c', '#111827'];
@@ -10,7 +10,9 @@ const ACCENTS = ['#4f46e5', '#0f766e', '#2563eb', '#be123c', '#c2410c', '#111827
 export default function Settings() {
   const { data, updateSettings, replaceAll, resetEmpty, loadDemo } = useStore();
   const toast = useToast();
+  const ask = useConfirm();
   const [s, setS] = useState<S>(data.settings);
+  useEffect(() => setS(data.settings), [data.settings]);
   const fileRef = useRef<HTMLInputElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(s) !== JSON.stringify(data.settings);
@@ -35,13 +37,12 @@ export default function Settings() {
   const exportBackup = () => downloadFile(`ledgerly-backup-${todayISO()}.json`, JSON.stringify(data, null, 2), 'application/json');
   const importBackup = (file?: File) => {
     if (!file) return;
-    file.text().then((txt) => {
+    file.text().then(async (txt) => {
       try {
         const parsed = JSON.parse(txt) as AppData;
         if (parsed.version !== 1 || !Array.isArray(parsed.invoices) || !Array.isArray(parsed.clients)) throw new Error();
-        if (!confirm('Replace all current data with this backup?')) return;
+        if (!(await ask({ title: 'Restore this backup?', message: 'All current clients, invoices and settings will be replaced.', confirmLabel: 'Restore', danger: true }))) return;
         replaceAll(parsed);
-        setS(parsed.settings);
         toast('Backup restored');
       } catch {
         toast('That file is not a valid Ledgerly backup');
@@ -119,13 +120,13 @@ export default function Settings() {
           </div>
           <div className="stack">
             <div className="row-gap wrap">
-              <button type="button" className="btn" onClick={exportBackup}><Download size={16} /> Export backup</button>
+              {!isEmbedded && <button type="button" className="btn" onClick={exportBackup}><Download size={16} /> Export backup</button>}
               <button type="button" className="btn" onClick={() => fileRef.current?.click()}><Upload size={16} /> Restore backup</button>
               <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => { importBackup(e.target.files?.[0]); e.target.value = ''; }} />
             </div>
             <div className="row-gap wrap">
-              <button type="button" className="btn btn-ghost" onClick={() => { if (confirm('Replace all data with sample data?')) { loadDemo(); toast('Sample data loaded'); setTimeout(() => location.reload(), 300); } }}>Load sample data</button>
-              <button type="button" className="btn btn-ghost btn-danger" onClick={() => { if (confirm('Erase all clients, invoices and settings? Export a backup first if you need one.')) { resetEmpty(); toast('All data erased'); setTimeout(() => location.reload(), 300); } }}>Erase all data</button>
+              <button type="button" className="btn btn-ghost" onClick={async () => { if (await ask({ title: 'Load sample data?', message: 'All current clients, invoices and settings will be replaced with examples.', confirmLabel: 'Load sample data' })) { loadDemo(); toast('Sample data loaded'); } }}>Load sample data</button>
+              <button type="button" className="btn btn-ghost btn-danger" onClick={async () => { if (await ask({ title: 'Erase all data?', message: 'All clients, invoices and settings will be deleted. Export a backup first if you need one.', confirmLabel: 'Erase everything', danger: true })) { resetEmpty(); toast('All data erased'); } }}>Erase all data</button>
             </div>
           </div>
         </section>

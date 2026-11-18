@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createHashRouter, RouterProvider } from 'react-router-dom';
 import './styles.css';
-import { StoreProvider, ToastProvider } from './store';
+import { ConfirmProvider, StoreProvider, ToastProvider } from './store';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Invoices from './pages/Invoices';
@@ -33,9 +33,11 @@ const router = createHashRouter([
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ToastProvider>
-      <StoreProvider>
-        <RouterProvider router={router} />
-      </StoreProvider>
+      <ConfirmProvider>
+        <StoreProvider>
+          <RouterProvider router={router} />
+        </StoreProvider>
+      </ConfirmProvider>
     </ToastProvider>
   </React.StrictMode>,
 );

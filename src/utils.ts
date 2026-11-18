@@ -1,5 +1,14 @@
 import type { Invoice, InvoiceStatus, RecurringInterval } from './types';
 
+/** True when running inside a sandboxed frame (e.g. a hosted preview), where print and file downloads are blocked. */
+export const isEmbedded = (() => {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+})();
+
 export const uid = () =>
   Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 

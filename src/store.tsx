@@ -227,3 +227,45 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 export const useToast = () => useContext(ToastCtx);
+
+/** In-app confirmation dialog (replaces window.confirm, which sandboxed frames block). */
+type ConfirmOpts = { title: string; message: string; confirmLabel?: string; danger?: boolean };
+const ConfirmCtx = createContext<(o: ConfirmOpts) => Promise<boolean>>(async () => false);
+
+export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const [req, setReq] = useState<(ConfirmOpts & { resolve: (v: boolean) => void }) | null>(null);
+  const ask = useCallback((o: ConfirmOpts) => new Promise<boolean>((resolve) => setReq({ ...o, resolve })), []);
+  const close = (v: boolean) => {
+    req?.resolve(v);
+    setReq(null);
+  };
+  useEffect(() => {
+    if (!req) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  return (
+    <ConfirmCtx.Provider value={ask}>
+      {children}
+      {req && (
+        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close(false)}>
+          <div className="modal" style={{ maxWidth: 420 }} role="alertdialog" aria-modal="true" aria-label={req.title}>
+            <div className="modal-body">
+              <h2>{req.title}</h2>
+              <p className="muted mt8">{req.message}</p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn" onClick={() => close(false)}>Cancel</button>
+              <button autoFocus className={`btn ${req.danger ? 'btn-danger-solid' : 'btn-primary'}`} onClick={() => close(true)}>
+                {req.confirmLabel || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </ConfirmCtx.Provider>
+  );
+}
+
+export const useConfirm = () => useContext(ConfirmCtx);
